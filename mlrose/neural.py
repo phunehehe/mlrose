@@ -53,7 +53,10 @@ def unflatten_weights(flat_weights, node_list):
     """
     nodes = 0
     for i in range(len(node_list) - 1):
-        nodes += node_list[i]*node_list[i + 1]
+        if i == len(node_list) - 2:
+            nodes += node_list[i] * node_list[i+1]
+        else:
+            nodes += node_list[i] * (node_list[i+1] - 1)
 
     if len(flat_weights) != nodes:
         raise Exception("""flat_weights must have length %d""" % (nodes,))
@@ -62,9 +65,13 @@ def unflatten_weights(flat_weights, node_list):
     start = 0
 
     for i in range(len(node_list) - 1):
-        end = start + node_list[i]*node_list[i + 1]
+        output_nodes = node_list[i + 1]
+        if i != len(node_list) - 2:
+            output_nodes -= 1
+
+        end = start + node_list[i] * output_nodes
         weights.append(np.reshape(flat_weights[start:end],
-                                  [node_list[i], node_list[i+1]]))
+                                  [node_list[i], output_nodes]))
         start = end
 
     return weights
@@ -233,7 +240,10 @@ class NetworkWeights:
 
         nodes = 0
         for i in range(len(node_list) - 1):
-            nodes += node_list[i]*node_list[i + 1]
+            if i == len(node_list) - 2:
+                nodes += node_list[i] * node_list[i+1]
+            else:
+                nodes += node_list[i] * (node_list[i+1] - 1)
 
         self.nodes = nodes
 
@@ -255,17 +265,16 @@ class NetworkWeights:
 
         self.inputs_list = []
         self.weights = unflatten_weights(state, self.node_list)
-
-        # Add bias column to inputs matrix, if required
-        if self.bias:
-            ones = np.ones([np.shape(self.X)[0], 1])
-            inputs = np.hstack((self.X, ones))
-
-        else:
-            inputs = self.X
+        inputs = self.X
 
         # Pass data through network
         for i in range(len(self.weights)):
+
+            # Add bias column to inputs matrix, if required
+            if self.bias:
+                ones = np.ones([np.shape(inputs)[0], 1])
+                inputs = np.hstack((inputs, ones))
+
             # Multiple inputs by weights
             outputs = np.dot(inputs, self.weights[i])
             self.inputs_list.append(inputs)
@@ -449,7 +458,7 @@ class NeuralNetwork:
         if (mutation_prob < 0) or (mutation_prob > 1):
             raise Exception("""mutation_prob must be between 0 and 1.""")
 
-        self.hidden_nodes = hidden_nodes
+        self.hidden_nodes = [i + 1 for i in hidden_nodes]
         self.max_iters = max_iters
         self.bias = bias
         self.is_classifier = is_classifier
@@ -522,7 +531,10 @@ class NeuralNetwork:
         num_nodes = 0
 
         for i in range(len(node_list) - 1):
-            num_nodes += node_list[i]*node_list[i+1]
+            if i == len(node_list) - 2:
+                num_nodes += node_list[i] * node_list[i+1]
+            else:
+                num_nodes += node_list[i] * (node_list[i+1] - 1)
 
         if init_weights is not None and len(init_weights) != num_nodes:
             raise Exception("""init_weights must be None or have length %d"""
@@ -592,17 +604,16 @@ class NeuralNetwork:
                             % ((self.node_list[0] - self.bias),))
 
         weights = unflatten_weights(self.fitted_weights, self.node_list)
-
-        # Add bias column to inputs matrix, if required
-        if self.bias:
-            ones = np.ones([np.shape(X)[0], 1])
-            inputs = np.hstack((X, ones))
-
-        else:
-            inputs = X
+        inputs = X
 
         # Pass data through network
         for i in range(len(weights)):
+
+            # Add bias column to inputs matrix, if required
+            if self.bias:
+                ones = np.ones([np.shape(inputs)[0], 1])
+                inputs = np.hstack((inputs, ones))
+
             # Multiple inputs by weights
             outputs = np.dot(inputs, weights[i])
 
